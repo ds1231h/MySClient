@@ -26,13 +26,15 @@ using namespace std;
 int main()
 {
 	WSADATA wsaD;
-	SOCKET sClient;
+	SOCKET sServer;
 	sockaddr_in servAddr;
-	const int BUFSIZE = 1024;
+	const int BUFSIZE = 1019;
 	const int portId = 1996;
-	char sendBuf[BUFSIZE];
-	char resvBuf[BUFSIZE];
-	int retVal;
+	char sendBuf[BUFSIZE] = {0};
+	char recvBuf[BUFSIZE+5] = {0};
+	char bufTop[5] = {0};
+	int retVal = 0;
+	int nCount = 0; // for receive file
 
 	// initial socket dll
 	if (WSAStartup(MAKEWORD(2, 2), &wsaD) != 0)
@@ -42,8 +44,8 @@ int main()
 	}
 
 	// creat socket
-	sClient = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (INVALID_SOCKET == sClient)
+	sServer = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (INVALID_SOCKET == sServer)
 	{
 		cout << "crear socket failed!" << endl;
 		WSACleanup();
@@ -56,11 +58,11 @@ int main()
 	servAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
 	// connect server
-	retVal = connect(sClient, (LPSOCKADDR)&servAddr, sizeof(servAddr));
+	retVal = connect(sServer, (LPSOCKADDR)&servAddr, sizeof(servAddr));
 	if (SOCKET_ERROR == retVal)
 	{
 		cout << "connect failed!" << endl;
-		closesocket(sClient);
+		closesocket(sServer);
 		WSACleanup();
 		return -1;
 	}
@@ -69,29 +71,67 @@ int main()
 		cout << "connect succeed!" << endl;
 	}
 
-	while(TRUE)
+	// receive file from server
+	// check if the file could create
+	char* filename = "E:\\sqlmap.rar";
+	// char* filename = "D:\\test.txt";
+	FILE* fp = fopen(filename, "wb");
+	if (NULL == fp)
 	{
-		// send data to server
-		ZeroMemory(sendBuf, BUFSIZE);
-		cout << "send data to server:";
-		cin >> sendBuf;
-		retVal = send(sClient, sendBuf, strlen(sendBuf), 0);
-		if (SOCKET_ERROR == retVal)
-		{
-			cout << "send data failed!" << endl;
-			closesocket(sClient);
-			WSACleanup();
-			return -1;
-		}
+		cout << "create file failed!" << endl;
+		return -1;
+	}
 
-		// receive data from server
-		recv(sClient, resvBuf, BUFSIZE, 0);
-		cout << "receive data succeed!" << endl;
-		cout << "receive from server:" << resvBuf << endl;
+	// receive data from server
+	while (TRUE)
+	{
+		memset(recvBuf, 0, BUFSIZE+5);
+		nCount = recv(sServer, recvBuf, BUFSIZE+5, 0);
+		// receive file
+		//if (strcmp(recvBuf, "f1996") && strcmp(recvBuf+strlen(recvBuf)-1, "e1996")) // receive file
+		for (int i = 0; i < 5; i++)
+		{
+			bufTop[i] = recvBuf[i];
+		}
+		bufTop[5] = '\0';
+		if (!strcmp(bufTop, "f1996"))
+		{
+			fwrite(recvBuf+5, nCount-5, 1, fp);
+		}
+		//else if ((!strcmp(recvBuf, "f1996")) && strcmp(recvBuf+strlen(recvBuf)-1, "e1996"))
+		else if (!strcmp(bufTop, "1996e")) // transform end
+		{
+			cout << "receive file succeed!" << endl;
+			fclose(fp);
+			continue;
+		}
+		else if ((strcmp(bufTop, "f1996")) || (strcmp(bufTop, "1996e")) && (strcmp(bufTop, "00000")))
+		{
+			// receive data from server
+			// recv(sServer, recvBuf, BUFSIZE, 0);
+			cout << "receive data succeed!" << endl;
+			cout << "receive from server:" << recvBuf << endl;
+
+			// send data to server
+			cout << "send data to server:";
+			cin >> sendBuf;
+			retVal = send(sServer, sendBuf, strlen(sendBuf), 0);
+			if (SOCKET_ERROR == retVal)
+			{
+				cout << "send data failed!" << endl;
+				closesocket(sServer);
+				WSACleanup();
+				return -1;
+			}
+		}
+		else
+		{
+			continue;
+		}
 	}
 
 	// exit
-	closesocket(sClient);
+	closesocket(sServer);
 	WSACleanup();
 	return 0;
 }
