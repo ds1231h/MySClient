@@ -1,10 +1,10 @@
 /*
 My socket client
-version 1.1
-connect with My sokcet server 1.1
+version 1.2
+connect with My sokcet server 1.2
 MuPei
-2016.07.20
-function: client for only one server
+2016.07.21
+function: client for one server
 			receive from server
 */
 
@@ -53,9 +53,9 @@ void recvData(void* soc)
 		if (SOCKET_ERROR == nCount)
 		{
 			cout << "accetp data failed!" << endl;
-// 			closesocket(*sServer);
-// 			WSACleanup();
-// 			return ;
+			closesocket(*sServer);
+			WSACleanup();
+			return ;
 			continue;
 		}
 		// receive file
@@ -91,6 +91,23 @@ void sendData(void* soc)
 	SOCKET* sServer = (SOCKET*)soc;
 	char sendBuf[BUFSIZE] = {0};
 	int retVal = 0;
+
+	cout << "please input your name: ";
+	cin >> sendBuf;
+	cout << "key word: ";
+	cin >> sendBuf+10;
+	retVal = send(*sServer, sendBuf, sizeof(sendBuf), 0);
+
+	while (SOCKET_ERROR == retVal)
+	{
+		cout << "upload failed!" << endl;
+		cout << "please input again" << endl;
+		cout << "please input your name: ";
+		cin >> sendBuf;
+		cout << "key word: ";
+		cin >> sendBuf+10;
+		retVal = send(*sServer, sendBuf, strlen(sendBuf), 0);
+	}
 
 	while (TRUE)
 	{
