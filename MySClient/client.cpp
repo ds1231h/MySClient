@@ -31,12 +31,12 @@ void recvData(void* soc)
 {
 	SOCKET* sServer = (SOCKET*)soc;
 	char recvBuf[BUFSIZE+5] = {0};
-	char bufTop[5] = {0};
+	char bufTop[6] = {0};
 	int nCount = 0; // for receive file
 
 	// receive file from server
 	// check if the file could create
-	char* filename = "E:\\sqlmap.rar";
+	char* filename = "E:\\ad.pdf";
 	// char* filename = "D:\\test.txt";
 	FILE* fp = fopen(filename, "wb");
 	if (NULL == fp)
@@ -49,7 +49,7 @@ void recvData(void* soc)
 	while (TRUE)
 	{
 		memset(recvBuf, 0, BUFSIZE+5);
-		nCount = recv(*sServer, recvBuf, BUFSIZE+5, 0);
+		nCount = recv(*sServer, recvBuf, BUFSIZE+4, 0);
 		if (SOCKET_ERROR == nCount)
 		{
 			cout << "accetp data failed!" << endl;
@@ -63,10 +63,10 @@ void recvData(void* soc)
 		{
 			bufTop[i] = recvBuf[i];
 		}
-		bufTop[5] = '\0';
+		// bufTop[6] = '\0';
 		if (!strcmp(bufTop, "f1996"))
 		{
-			fwrite(recvBuf+5, nCount-5, 1, fp);
+			fwrite(recvBuf+5, 1, BUFSIZE-1, fp);
 		}
 		else if (!strcmp(bufTop, "1996e")) // transform end
 		{
@@ -77,6 +77,7 @@ void recvData(void* soc)
 		{
 			// receive data from server
 			cout << "receive from server:" << recvBuf << endl;
+			memset(recvBuf, 0, BUFSIZE);
 		}
 	}
 	// exit
