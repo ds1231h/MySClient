@@ -1,9 +1,9 @@
 /*
 My socket client
-version 1.2
-connect with My sokcet server 1.2
+version 1.3
+connect with My sokcet server 1.3
 MuPei
-2016.07.21
+2016.07.22
 function: client for one server
 			receive from server
 */
@@ -25,140 +25,103 @@ step:
 using namespace std;
 
 const int BUFSIZE = 1019;
-bool sendFinish = false;
+const int RECVSIZE = 1024;
 
 // receive data
 void recvData(void* soc)
 {
 	SOCKET* sServer = (SOCKET*)soc;
-	char recvBuf[BUFSIZE] = {0};
-	
+	char recvBuf[RECVSIZE] = {0};
+	char bufTop[5] = {0};
 	int nCount = 0; // for receive file
-	HANDLE hEvent = NULL;
-	DWORD dReturn;
-
-	while (TRUE)
-	{
-		if (sendFinish)
-		{
-			hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-			dReturn = WaitForSingleObject(hEvent,INFINITE);
-		} 
-		else
-		{
-			hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-			dReturn = WaitForSingleObject(hEvent,10000); // after 10s, disconnect
-		}
-	
-		if (dReturn == WAIT_OBJECT_0)
-		{
-			memset(recvBuf, 0, BUFSIZE+5);
-			nCount = recv(*sServer, recvBuf, BUFSIZE+4, 0);
-			if (SOCKET_ERROR == nCount)
-			{
-				cout << "accetp data failed!" << endl;
-				closesocket(*sServer);
-				WSACleanup();
-				return ;
-				continue;
-			}
-			else
-			{
-				// receive data from server
-				cout << "receive from server:" << recvBuf << endl;
-				memset(recvBuf, 0, BUFSIZE);
-			}
-		}
-		else if (dReturn == WAIT_FAILED)
-		{
-			cout << "error!" << endl;
-		}
-	} 
-	
-
-	// exit
-	closesocket(*sServer);
-	WSACleanup();
-	return ;
-}
-
-void recvFile(void* soc)
-{
-	SOCKET* sServer = (SOCKET*)soc;
-	char recvBuf[BUFSIZE+5] = {0};
-	char bufTop[6] = {0};
-	char sendError[] = {"send error, please send again"};
-	int nCount = 0; // for receive file
-	int nData = 0;
-	char* szBuff = NULL;
+	bool fileStart = true;
+// 	union
+// 	{
+// 		int fsize;
+// 		char fileSize[4];
+// 	};
+	char fileSize[4] = {0};
+	char logData[50] = {"file receive "};
+	unsigned int fsize;
+	int restSize = 0;
+	int transTime = 0;
 
 	// receive file from server
 	// check if the file could create
-	char* filename = "E:\\sqlmap.rar";
+	char* filename = "E:\\MyHash.exe";
 	// char* filename = "D:\\test.txt";
 	FILE* fp = fopen(filename, "wb");
 	if (NULL == fp)
 	{
 		cout << "create file failed!" << endl;
 		cout << "can't transform file!" << endl;
-		/*		return ;*/
+/*		return ;*/
 	}
-
-	WIN32_FIND_DATA FileInfo;
-	recv(*sServer, (char*)&FileInfo, sizeof(WIN32_FIND_DATA), 0);
-	while (nCount < FileInfo.nFileSizeLow)
+	char* logName = "E:\\log.txt";
+	FILE* flp = fopen(logName, "wb");
+	if (NULL == flp)
 	{
-		szBuff = new char[1024];
-		memset(szBuff, 0, 1024);
-		nData = recv(*sServer, szBuff, 1024, 0);
-		fwrite(szBuff, 1, nData, fp);
-		nCount += nData;
+		cout << "create log file failed!" << endl;
 	}
-	delete szBuff;
-	fclose(fp);
-	cout << "receive file succeed!" << endl;
-// 	while (TRUE)
-// 	{
-// 		memset(recvBuf, 0, BUFSIZE+5);
-// 		nCount = recv(*sServer, recvBuf, BUFSIZE+4, 0);
-// 		if (SOCKET_ERROR == nCount)
-// 		{
-// 			cout << "accetp data failed!" << endl;
-// 			closesocket(*sServer);
-// 			WSACleanup();
-// 			return ;
-// 			continue;
-// 		}
-// 
-// 		// receive file
-// 		for (int i = 0; i < 5; i++)
-// 		{
-// 			bufTop[i] = recvBuf[i];
-// 		}
-// 		// bufTop[6] = '\0';
-// 		if (!strcmp(bufTop, "f1996"))
-// 		{
-// 			fwrite(recvBuf+5, 1, BUFSIZE-1, fp);
-// 		}
-// 		else if (!strcmp(bufTop, "1996e")) // transform end
-// 		{
-// 			cout << "receive file succeed!" << endl;
-// 			fclose(fp);
-// 			sendFinish = true;
-// 			break;
-// 		}
-// 		else
-// 		{
-// 			// there are something wrong, send again
-// 			send(*sServer, sendError, sizeof(sendError), 0);
-// 			continue;
-// 		}
-//	}
-	// receive finish
 
+	while (TRUE)
+	{
+		memset(recvBuf, 0, RECVSIZE);
+		nCount = recv(*sServer, recvBuf, RECVSIZE, 0);
+		if (SOCKET_ERROR == nCount)
+		{
+			cout << "accetp data failed!" << endl;
+			closesocket(*sServer);
+			WSACleanup();
+			return ;
+			continue;
+		}
+		// receive file
+		for (int i = 0; i < 5; i++)
+		{
+			bufTop[i] = recvBuf[i];
+		}
+		bufTop[5] = '\0';
+		if (!strcmp(bufTop, "f1996"))
+		{
+// 			if (fileStart)
+// 			{
+// 				strcpy(fileSize, recvBuf+5);
+// 				fileStart = false;
+// 				restSize = fsize;
+// 			}
+			transTime++;
+			strcpy(fileSize, recvBuf+5);
+			// fsize = fileSize[0];
+			fsize = atoi(fileSize);
+			recv(*sServer, recvBuf, RECVSIZE, 0);
+			fwrite(recvBuf+5, fsize > BUFSIZE ? BUFSIZE : fsize, 1, fp);
+			restSize = fsize - (fsize > BUFSIZE ? BUFSIZE : fsize);
+			printf("file remain %d\n", restSize);
+			strcat(logData, fileSize);
+			strcat(logData, "\r\n");
+			fwrite(logData, strlen(logData), 1, flp);
+			memset(logData+13, 0, sizeof(logData));
+		}
+		else if (!strcmp(bufTop, "1996e")) // transform end
+		{
+			cout << "receive file succeed!" << endl;
+			fclose(fp);
+			fclose(flp);
+		}
+		else if ((strcmp(bufTop, "f1996")) || (strcmp(bufTop, "1996e")) || (!strcmp(bufTop, "00000")))
+		{
+			// receive data from server
+			cout << "receive from server:" << recvBuf << endl;
+		}
+		else
+		{
+			cout << "error" << endl;
+		}
+	}
 	// exit
-// 	closesocket(*sServer);
-// 	WSACleanup();
+	closesocket(*sServer);
+	WSACleanup();
 	return ;
 }
 
@@ -168,52 +131,38 @@ void sendData(void* soc)
 	SOCKET* sServer = (SOCKET*)soc;
 	char sendBuf[BUFSIZE] = {0};
 	int retVal = 0;
-	HANDLE hEvent = NULL;
-	DWORD dReturn;
 
-	hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	cout << "please input your name: ";
+	cin >> sendBuf;
+	cout << "key word: ";
+	cin >> sendBuf+10;
+	retVal = send(*sServer, sendBuf, sizeof(sendBuf), 0);
+
+	while (SOCKET_ERROR == retVal)
+	{
+		cout << "upload failed!" << endl;
+		cout << "please input again" << endl;
+		cout << "please input your name: ";
+		cin >> sendBuf;
+		cout << "key word: ";
+		cin >> sendBuf+10;
+		retVal = send(*sServer, sendBuf, strlen(sendBuf), 0);
+	}
 
 	while (TRUE)
 	{
-		dReturn = WaitForSingleObject(hEvent,10000); // after 10s, disconnect
-
-		if (dReturn == WAIT_OBJECT_0)
+		// send data to server
+		cin >> sendBuf;
+		retVal = send(*sServer, sendBuf, strlen(sendBuf), 0);
+		if (SOCKET_ERROR == retVal)
 		{
-			cout << "please input your name: ";
-			cin >> sendBuf;
-			cout << "key word: ";
-			cin >> sendBuf+10;
-			retVal = send(*sServer, sendBuf, sizeof(sendBuf), 0);
-
-			while (SOCKET_ERROR == retVal)
-			{
-				cout << "upload failed!" << endl;
-				cout << "please input again" << endl;
-				cout << "please input your name: ";
-				cin >> sendBuf;
-				cout << "key word: ";
-				cin >> sendBuf+10;
-				retVal = send(*sServer, sendBuf, strlen(sendBuf), 0);
-			}
-
-			// send data to server
-			cin >> sendBuf;
-			retVal = send(*sServer, sendBuf, strlen(sendBuf), 0);
-			if (SOCKET_ERROR == retVal)
-			{
- 				cout << "send data failed!" << endl;
-// 	 			closesocket(*sServer);
-// 	 			WSACleanup();
-// 	 			return ;
-				continue;
-			}
-		}
-		else if (dReturn == WAIT_FAILED)
-		{
-			cout << "error!" << endl;
+ 			cout << "send data failed!" << endl;
+// 			closesocket(*sServer);
+// 			WSACleanup();
+// 			return ;
+			continue;
 		}
 	}
-
 	// exit
 	closesocket(*sServer);
 	WSACleanup();
@@ -264,7 +213,6 @@ int main()
 	}
 
 	// begin thread
-	uintptr_t threadId0 = _beginthread(recvFile, 0, &sServer); // receive file
 	uintptr_t threadId1 = _beginthread(recvData, 0, &sServer); // receive
 	uintptr_t threadId2 = _beginthread(sendData, 0, &sServer); // send
 	while(TRUE)
